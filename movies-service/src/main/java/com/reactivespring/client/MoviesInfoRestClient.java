@@ -19,6 +19,12 @@ public class MoviesInfoRestClient {
     }
 
     public Mono<MovieInfo> retrieveMovieInfo(String movieId) {
-        return Mono.error(new RuntimeException("Not Implemented"));
+
+        var url = movieInfosUrl.concat("/{id}");
+        return webClient.get()
+                .uri(url, movieId)
+                .retrieve()
+                .bodyToMono(MovieInfo.class)
+                .log();
     }
 }
