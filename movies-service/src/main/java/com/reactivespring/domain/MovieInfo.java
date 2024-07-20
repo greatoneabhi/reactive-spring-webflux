@@ -25,6 +25,6 @@ public class MovieInfo {
     private Integer year;
 
     @NotNull
-    private List<@NotBlank(message = "movieInfo.cast must be present") String> cast;
-    private LocalDate release_date;
+    private List<@NotBlank(message = "movieInfo.cast must be present") String> genre;
+    private LocalDate releaseDate;
 }

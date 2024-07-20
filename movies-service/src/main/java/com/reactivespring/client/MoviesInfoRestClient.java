@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Component
@@ -49,6 +50,29 @@ public class MoviesInfoRestClient {
                                     .error(new MoviesInfoServerException("Unexpected error. " + errorResponse)));
                 })
                 .bodyToMono(MovieInfo.class)
+                //.retry(3)
+                .retryWhen(RetryUtil.retrySpec())
+                .log();
+    }
+
+    public Flux<MovieInfo> retrieveMovieInfoStream() {
+        var movieStreamUrl = movieInfosUrl.concat("/stream");
+        return webClient.get()
+                .uri(movieStreamUrl)
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, clientResponse -> {
+                    log.error("Error page returned {} ", clientResponse.statusCode().value());
+                    return clientResponse.bodyToMono(String.class)
+                            .flatMap(errorResponse -> Mono.error(new MoviesInfoClientException(errorResponse,
+                                    clientResponse.statusCode().value())));
+                })
+                .onStatus(HttpStatusCode::is5xxServerError, clientResponse -> {
+                    log.error("Server error page returned {} ", clientResponse.statusCode().value());
+                    return clientResponse.bodyToMono(String.class)
+                            .flatMap(errorResponse -> Mono
+                                    .error(new MoviesInfoServerException("Unexpected error. " + errorResponse)));
+                })
+                .bodyToFlux(MovieInfo.class)
                 //.retry(3)
                 .retryWhen(RetryUtil.retrySpec())
                 .log();

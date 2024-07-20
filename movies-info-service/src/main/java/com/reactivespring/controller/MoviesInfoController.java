@@ -4,10 +4,12 @@ import com.reactivespring.domain.MovieInfo;
 import com.reactivespring.service.MoviesInfoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
 
 import java.util.Objects;
 
@@ -16,6 +18,8 @@ import java.util.Objects;
 public class MoviesInfoController {
 
     private final MoviesInfoService moviesInfoService;
+
+    Sinks.Many<MovieInfo> movieInfoSink = Sinks.many().replay().all();
 
     public MoviesInfoController(MoviesInfoService moviesInfoService) {
         this.moviesInfoService = moviesInfoService;
@@ -39,10 +43,17 @@ public class MoviesInfoController {
         return moviesInfoService.getAllMovieInfo().log();
     }
 
+    @GetMapping(value = "/movieinfos/stream", produces = MediaType.APPLICATION_NDJSON_VALUE)
+    @ResponseStatus(HttpStatus.OK)
+    public Flux<MovieInfo> getAllMovieInfosStream() {
+        return movieInfoSink.asFlux().log();
+    }
+
     @PostMapping("/movieinfos")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<MovieInfo> addMovieInfo(@RequestBody @Valid MovieInfo movieInfo) {
-        return moviesInfoService.addMovieInfo(movieInfo).log();
+        return moviesInfoService.addMovieInfo(movieInfo)
+                .doOnNext(savedMovieInfo -> movieInfoSink.tryEmitNext(savedMovieInfo));
     }
 
     @PutMapping("/movieinfos/{id}")
@@ -50,7 +61,7 @@ public class MoviesInfoController {
     public Mono<ResponseEntity<MovieInfo>> updateMovieInfo(@RequestBody MovieInfo updateMovieInfo, @PathVariable String id) {
         return moviesInfoService.updateMovieInfo(updateMovieInfo, id)
                 .map(ResponseEntity::ok)
-                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build() ))
+                .switchIfEmpty(Mono.just(ResponseEntity.notFound().build()))
                 .log();
     }
 

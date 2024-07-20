@@ -15,11 +15,12 @@ public class ReviewRouter {
     @Bean
     RouterFunction<ServerResponse> reviewsRoute(ReviewHandler reviewHandler) {
         return route()
-                .nest(path("/v1/reviews"), builder ->{
+                .nest(path("/v1/reviews"), builder -> {
                     builder.POST("", reviewHandler::addReview)
                             .GET("", reviewHandler::getReviews)
                             .PUT("/{id}", reviewHandler::updateReview)
-                            .DELETE("/{id}", reviewHandler::deleteReview);
+                            .DELETE("/{id}", reviewHandler::deleteReview)
+                            .GET("/stream", reviewHandler::getReviewsStream);
                 })
                 .GET("/v1/helloworld", (request -> ServerResponse.ok().bodyValue("Hello World")))
                 .build();

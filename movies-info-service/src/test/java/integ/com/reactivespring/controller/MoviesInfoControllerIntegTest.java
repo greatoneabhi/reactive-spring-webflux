@@ -10,8 +10,8 @@ import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWeb
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.test.StepVerifier;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -56,7 +56,7 @@ class MoviesInfoControllerIntegTest {
     void addMovieInfo() {
 
         webTestClient.post()
-                .uri(MOVIE_INFO_BASE_PATH )
+                .uri(MOVIE_INFO_BASE_PATH)
                 .bodyValue(new MovieInfo(null, "The Equalizer 2", 2018,
                         List.of("Action", "Adventure", "Sci-Fi"), LocalDate.parse("2018-06-25")))
                 .exchange()
@@ -85,6 +85,40 @@ class MoviesInfoControllerIntegTest {
                     assert movieInfos != null;
                     assertEquals(3, movieInfos.size());
                 });
+    }
+
+    @Test
+    void getAllMoviesInfoStream() {
+
+        webTestClient.post()
+                .uri(MOVIE_INFO_BASE_PATH)
+                .bodyValue(new MovieInfo(null, "The Equalizer 2", 2018,
+                        List.of("Action", "Adventure", "Sci-Fi"), LocalDate.parse("2018-06-25")))
+                .exchange()
+                .expectStatus()
+                .isCreated()
+                .expectBody(MovieInfo.class)
+                .consumeWith(movieInfoEntityExchangeResult -> {
+                    var savedMovieInfo = movieInfoEntityExchangeResult.getResponseBody();
+                    assert savedMovieInfo != null;
+                    assert savedMovieInfo.getMovieInfoId() != null;
+                    assertEquals("The Equalizer 2", savedMovieInfo.getName());
+                });
+
+        var moviesStreamFlux = webTestClient.get()
+                .uri(MOVIE_INFO_BASE_PATH + "/stream")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .returnResult(MovieInfo.class)
+                .getResponseBody();
+
+        StepVerifier.create(moviesStreamFlux)
+                .assertNext(movieInfo -> {
+                    assertEquals("The Equalizer 2", movieInfo.getName());
+                })
+                .thenCancel()
+                .verify();
     }
 
     @Test
@@ -163,9 +197,9 @@ class MoviesInfoControllerIntegTest {
         var year = 2018;
 
         var uri = UriComponentsBuilder.fromUriString(MOVIE_INFO_BASE_PATH)
-                            .queryParam("year", year)
-                            .buildAndExpand()
-                            .toUri();
+                .queryParam("year", year)
+                .buildAndExpand()
+                .toUri();
 
         webTestClient.get()
                 .uri(uri)
